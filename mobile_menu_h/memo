@@ -1,0 +1,108 @@
+さて、ナビが出てくる所の動きは理解出来た。
+後googleナビに近づけるためには、ナビの上下の動きがどうもカクカクした感じがあるので、何とかならんかと本家を見てみた。
+
+google のソースはこう。
+
+<div id="navicontentswrapper" style="transform: translate3d(0px, 0px, 0px);">
+
+	<a href="#">...</a>
+
+	<a href="#">...</a>
+
+	<a href="#">...</a>
+
+	<a href="#">...</a>
+
+</div>
+
+
+これで、ナビ内をスライドすると、
+
+transition　: -moz-transform 0ms ease-in-out 0s
+
+がついて、
+
+transform　の値が　translate3d(0px, -109px, 0px)　のようになる。
+
+これを再現するには。。
+
+touchstart、touchmove, touchendの部分をちょっと変えます。
+
+<pre>
+$(settings.menu_list).bind({
+    'touchstart': function(e) {
+		menu_list_height = $(settings.menu_list).height();
+		sfY = event.touches[0].screenY;
+    },
+    'touchmove': function(e) {
+		mfY = event.changedTouches[0].screenY;
+		var moveY = smY + mfY - sfY;
+ 
+ 		// moving
+		$(this).css({
+			"-webkit-transition": "all "+timer+"ms cubic-bezier(0.075, 0.82, 0.165, 1)",
+			'-webkit-transform':'translate3d(0px,'+ moveY +'px,0px)',
+		});
+    },
+    'touchend': function(e) {
+		smY = smY + (mfY - sfY);
+		if(smY > 0) smY = 0;
+		if(screen.height > menu_list_height) {
+			smY = 0;
+		}
+		else if(screen.height - menu_list_height > smY + settings.bottom_margin) {
+			smY = screen.height - menu_list_height - settings.bottom_margin;
+		}
+    }
+});
+</pre>
+
+こんな具合に。
+
+そして、touchmove時に移動距離=moveYが０以下、またはscreen.height - menu_list_heightを超える場合、
+戻る処理を与える。
+
+なんで、まずフラッグを立てて、
+
+var mflag = false;
+
+戻す処理が必要な場合はそれを立てる。
+
+<pre>
+if(moveY > 0){
+	mflag = true;
+	moveY_b = 0;
+}else if(screen.height > menu_list_height) {
+	moveY = 0;
+}else if(screen.height - menu_list_height > moveY + settings.bottom_margin) {
+	mflag = true;
+	moveY_b = screen.height - menu_list_height - settings.bottom_margin;
+}
+</pre>
+
+moveY_bが戻り値。
+
+それで、touchendの時に戻してやると。
+<pre>
+if(mflag){
+$(this).css({
+	"-webkit-transition": "all "+timer+"ms cubic-bezier(0.075, 0.82, 0.165, 1)",
+	'-webkit-transform':'translate3d(0px,'+ moveY_b +'px,0px)',
+});
+}
+<pre>
+
+これでちょっとは近づいたか。。
+
+
+easingについては、
+http://easings.net/
+を参考に。
+
+
+
+
+
+
+
+
